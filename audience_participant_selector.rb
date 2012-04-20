@@ -14,53 +14,113 @@ class PVector
   end
 end
 
-class Letter
+class SwirlBehavior
   include Processing::Proxy
 
-  attr_accessor :char, :position
+  attr_accessor :radius, :angle
+  attr_reader :entity
 
-  def x; @position.x end
-  def y; @position.y end
-
-  def initialize(char='A', x_or_vec = 0, y = 0)
-    @char = char
-
-    if x_or_vec.kind_of? PVector
-      @position = x_or_vec
-    elsif
-      @position = PVector.new(x_or_vec, y)
-    end
-
-    @radius = sqrt(@position.x**2 + @position.y**2)
-    @angle = atan2(@position.y, @position.x)
-    @sin_offset = rand * TWO_PI
+  def entity=(entity)
+    @entity = entity
+    @angle = @entity ? atan2(@entity.y, @entity.x) : nil
+    @sin_offset = @entity ? rand * TWO_PI : nil
+    @radius = @entity ? sqrt(@entity.x**2 + @entity.y**2) : nil
   end
 
-  def update(deltaTime)
-    radflux = @radius + sin(@angle + @sin_offset) * 100.0
-    @angle = (@angle + deltaTime).divmod(TWO_PI)[1]
-    @position.x = cos(@angle) * radflux
-    @position.y = sin(@angle) * radflux
+  def initialize(entity = nil)
+    @entity = entity
+    unless @entity == nil
+      @angle = atan2(@entity.y, @entity.x)
+      @sin_offset = rand * TWO_PI
+      @radius = sqrt(@position.x**2 + @position.y**2)
+    end
+  end
+
+  def update(deltaTime)    
+    radflux = @radius + Math.sin(@angle + @sin_offset) * 100.0
+    @angle = (@angle + deltaTime) % TWO_PI
+    entity.x = cos(@angle) * radflux
+    entity.y = sin(@angle) * radflux
   end
 
   def draw
-    text(@char, @position.x, @position.y)
+    puts 'Behavior draw occurring'
+  end
+end
+
+class SketchEntity
+  attr_accessor :behavior
+  attr_reader :position
+
+  def x; @position.x end
+  def x=(value); @position.x = value end
+  def y; @position.y end
+  def y=(value); @position.y = value end
+
+  def initialize(args)
+    unless (@position = args[:position])
+      @position = PVector.new(args[:x] || 0, args[:y] || 0)
+    end
+    @behavior = args[:behavior]
+    @behavior.entity = self unless @behavior == nil
+  end
+
+  def update(deltaTime)
+    @behavior.update(deltaTime) if @behavior.respond_to?(:update)
+    _update
+  end
+
+  def draw
+    @behavior.draw if @behavior.respond_to? :draw
+    _draw
+  end
+
+  private
+
+  def _update
+  end
+
+  def _draw; end
+end
+
+
+class Letter < SketchEntity
+  include Processing::Proxy
+
+  def initialize(char='A', entity_args = { })
+    if entity_args.kind_of? PVector
+      super({ :position => entity_args })
+    else
+      super(entity_args)
+    end
+
+    @char = char
+  end
+
+  def _draw
+    text(@char, x, y)
   end
 end
 
 
 class AudienceParticipantSelector < Processing::App
+  load_libraries :opengl
+
   Alphabet = ('A'..'Z').to_a
 
   attr_accessor :trx, :try, :do_rotate
   attr_reader :letters
 
   def setup
+    size width, height, OPENGL
     @do_rotate = true
 
-    @letters = (0...1000).map do
-      Letter.new(Alphabet[rand(26)], PVector.from_polar((rand(width*1.5)+200) / 2.0, rand * TWO_PI))
-      # Letter.new(Alphabet[rand(26)], rand(width-50) - ((width-50) / 2.0), rand(width-50) - ((width-50) / 2.0))
+    @letters = (0...800).map do
+      letter = Letter.new Alphabet[rand(26)], 
+      {
+        :position => PVector.from_polar((rand(width*1.5)+200) / 2.0, rand * TWO_PI),
+        :behavior => SwirlBehavior.new
+      }
     end
 
     @timer = 0
@@ -73,15 +133,9 @@ class AudienceParticipantSelector < Processing::App
     background(0)
     deltaTime = millis / 1000.0 - @timer
     @timer += deltaTime
-
-    if @do_rotate
-      @letters.each { |l| l.update(deltaTime) }
-    else
-      @letters.each { |l| l.update(0) }
-    end
-
+    @letters.each { |l| l.update(deltaTime) }
     @letters.each { |l| l.draw }
   end
 end
 
-AudienceParticipantSelector.new :title => "Name Selector", :width => 1024, :height => 768
+AudienceParticipantSelector.new :title => "Audience Participant Selector", :width => 1024, :height => 768
