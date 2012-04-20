@@ -22,18 +22,11 @@ class SwirlBehavior
 
   def entity=(entity)
     @entity = entity
-    @angle = @entity ? atan2(@entity.y, @entity.x) : nil
-    @sin_offset = @entity ? rand * TWO_PI : nil
-    @radius = @entity ? sqrt(@entity.x**2 + @entity.y**2) : nil
+    update_fields
   end
 
   def initialize(entity = nil)
-    @entity = entity
-    unless @entity == nil
-      @angle = atan2(@entity.y, @entity.x)
-      @sin_offset = rand * TWO_PI
-      @radius = sqrt(@position.x**2 + @position.y**2)
-    end
+    self.entity = entity
   end
 
   def update(deltaTime)    
@@ -45,6 +38,13 @@ class SwirlBehavior
 
   def draw
     puts 'Behavior draw occurring'
+  end
+
+  private
+  def update_fields
+    @angle = @entity ? atan2(@entity.y, @entity.x) : nil
+    @sin_offset = @entity ? rand * TWO_PI : nil
+    @radius = @entity ? sqrt(@entity.x**2 + @entity.y**2) : nil
   end
 end
 
