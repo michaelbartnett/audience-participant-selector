@@ -118,12 +118,11 @@ class GTFOBehavior < Behavior
   end
 
   def update(deltaTime)
+    entity.pop_behavior if @popme and state == :in and PVector.sub(@target_position, entity.position).mag <= 1.0
     return if entity == nil || @progress >= 1.0
-    @progress += deltaTime / 100.0
+    @progress += deltaTime / 5.0
     entity.x = lerp(entity.x, @target_position.x, @progress)
     entity.y = lerp(entity.y, @target_position.y, @progress)
-    puts "POPME is #{@popme}"
-    entity.pop_behavior if @popme and @progress >= 1.0
   end
 
   def flip_state
@@ -135,18 +134,17 @@ class GTFOBehavior < Behavior
   end
 
   def return_and_pop
-    puts "Getting ready to pop"
-    state = :in
+    self.state = :in
     @popme = true
   end
 
   def on_entity_changed
-    @state = :out
+    @state = :in
     @popme = false
     @original_position = entity.position.get
     @new_position = PVector.from_polar(entity.position.polar_radius + width / 1.7, entity.position.polar_angle)
     @new_position.add(@original_position)
-    @target_position = @new_position
+    @target_position = @original_position
     @progress = 0.0
   end
 end
@@ -184,10 +182,10 @@ class AudienceParticipantSelector < Processing::App
     @do_rotate = true
     @gtfo_gate = 0
 
-    @letters = (0...1).map do
+    @letters = (0...800).map do
       letter = Letter.new Alphabet[rand(26)],
       {
-        :position => PVector.from_polar((rand(width*0.7)+200) / 2.0, rand * TWO_PI),
+        :position => PVector.from_polar((rand(width*1.5)+200) / 2.0, rand * TWO_PI),
         :behavior => SwirlBehavior.new
       }
     end
@@ -207,24 +205,24 @@ class AudienceParticipantSelector < Processing::App
   end
 
   def keyPressed
-    puts "KEYPRESS: #{key}"
-    puts "len = #{key.length}"
-    case key
-    when ' '
-      if @gtfo_gate == 0
+    case @letters[0].current_behavior
+    when SwirlBehavior
+      case key
+      when 'q'
         @letters.each do |l|
           l.push_behavior GTFOBehavior.new(l)
         end
-        @gtfo_gate++
-      else
-        @letters.each do |l|
-          l.current_behavior.flip_state
-        end
       end
-    when 'r'
-      puts "DERP"
-      @letters.each do |l|
-        l.current_behavior.return_and_pop
+    when GTFOBehavior
+      case key
+      when 'z'
+        @letters.each do |l|
+            l.current_behavior.flip_state
+        end
+      when 'r'
+        @letters.each do |l|
+          l.current_behavior.return_and_pop
+        end
       end
     end
   end
@@ -238,4 +236,4 @@ class AudienceParticipantSelector < Processing::App
   end
 end
 
-$myapp = AudienceParticipantSelector.new :title => "Audience Participant Selector", :width => 1024, :height => 768
+AudienceParticipantSelector.new :title => "Audience Participant Selector", :width => 1024, :height => 768
